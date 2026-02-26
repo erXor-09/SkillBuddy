@@ -219,7 +219,7 @@ MIT License — see LICENSE file for details.
 
 ## Contact
 
-Maintainer: Your Name — replace with your contact email or GitHub handle.
+Maintainer: erXor
 
 ---
 
