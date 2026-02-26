@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Theme CSS Custom Properties (set dynamically by ThemeContext)
+   ============================================================ */
+:root {
+    --color-theme: #6366F1;
+    --color-theme-hover: #4F46E5;
+    --color-theme-light: #EEF2FF;
+
+    /* Light mode surface / text tokens */
+    --bg-page: #F9FAFB;
+    --bg-surface: #FFFFFF;
+    --bg-surface-2: #F3F4F6;
+    --bg-surface-3: #E5E7EB;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --border-color: #E5E7EB;
+    --border-light: #F3F4F6;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+/* Dark mode overrides */
+html.dark {
+    --bg-page: #0F1117;
+    --bg-surface: #1A1D27;
+    --bg-surface-2: #22263A;
+    --bg-surface-3: #2D3249;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --border-color: #2D3249;
+    --border-light: #22263A;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.30);
+    --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.40);
+}
+
+/* ============================================================
+   Semantic utility classes driven by CSS vars
+   ============================================================ */
+.bg-page {
+    background-color: var(--bg-page);
+}
+
+.bg-surface {
+    background-color: var(--bg-surface);
+}
+
+.bg-surface-2 {
+    background-color: var(--bg-surface-2);
+}
+
+.bg-surface-3 {
+    background-color: var(--bg-surface-3);
+}
+
+.text-primary {
+    color: var(--text-primary);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.text-muted-clr {
+    color: var(--text-muted);
+}
+
+.border-ui {
+    border-color: var(--border-color);
+}
+
+.border-ui-light {
+    border-color: var(--border-light);
+}
+
+/* ============================================================
+   Theme accent utility classes (set by ThemeContext)
+   ============================================================ */
+.text-theme {
+    color: var(--color-theme);
+}
+
+.bg-theme {
+    background-color: var(--color-theme);
+}
+
+.bg-theme-hover {
+    background-color: var(--color-theme-hover);
+}
+
+.bg-theme-light {
+    background-color: var(--color-theme-light);
+}
+
+.border-theme {
+    border-color: var(--color-theme);
+}
+
+.ring-theme {
+    --tw-ring-color: var(--color-theme);
+}
+
+.hover\:bg-theme-hover:hover {
+    background-color: var(--color-theme-hover);
+}
+
+.hover\:text-theme:hover {
+    color: var(--color-theme);
+}
+
+.hover\:bg-theme-light:hover {
+    background-color: var(--color-theme-light);
+}
+
+.shadow-theme\/30 {
+    --tw-shadow-color: color-mix(in srgb, var(--color-theme) 30%, transparent);
+    box-shadow: var(--tw-shadow);
+}
+
+.hover\:shadow-theme\/40:hover {
+    --tw-shadow-color: color-mix(in srgb, var(--color-theme) 40%, transparent);
+    box-shadow: var(--tw-shadow);
+}
+
+.selection\:bg-theme-light *::selection {
+    background-color: var(--color-theme-light);
+}
+
+.selection\:text-theme *::selection {
+    color: var(--color-theme);
+}
+
+.border-theme\/20 {
+    border-color: color-mix(in srgb, var(--color-theme) 20%, transparent);
+}
+
+/* Smooth theme transitions */
+*,
+*::before,
+*::after {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* But not animations/transforms */
+.no-transition,
+button:active,
+[data-no-transition] {
+    transition: none !important;
+}
