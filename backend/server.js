@@ -32,6 +32,8 @@ app.use('/api/doubts', require('./routes/doubtRoutes'));
 app.use('/api/gamification', require('./routes/gamificationRoutes'));
 app.use('/api/ai-assistant', require('./routes/aiAssistantRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/ai', require('./routes/generateMcqRoutes'));
+app.use('/api/daily-quiz', require('./routes/dailyQuizRoutes'));
 
 // Serve Uploads
 app.use('/uploads', express.static('uploads'));

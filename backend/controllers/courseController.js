@@ -186,11 +186,11 @@ exports.getTopicDetails = async (req, res) => {
                 [topicDoc.title]
             );
 
-            topicDoc.resources = resourcesData.recommendations.map(r => ({
-                type: r.type.toLowerCase(),
-                title: r.title,
-                url: r.url,
-                duration: '10 min',
+            topicDoc.resources = (resourcesData.recommendations || []).map(r => ({
+                type: (r.type || 'article').toLowerCase(),
+                title: r.title || 'Resource',
+                url: r.url || '#',
+                duration: r.duration || '10 min',
                 completed: false
             }));
 
@@ -737,40 +737,70 @@ exports.generateResourceQuiz = async (req, res) => {
 exports.adminTopicQuiz = async (req, res) => {
     try {
         const { courseId, moduleId, topicId } = req.params;
-        const { bloomLevel } = req.query; // Passed from frontend when generating
-        const userId = req.user.id; // Student ID
+        const { bloomLevel } = req.query;
+        const userId = req.user.id;
 
-        const course = await Course.findById(courseId);
-        if (!course) return res.status(404).json({ error: 'Course not found' });
+        let topicTitle = '';
+        let courseTitle = 'Your Learning Path';
+        let courseLevel = 'Intermediate';
+        let topicDescription = '';
 
-        const moduleDoc = course.modules.id(moduleId);
-        if (!moduleDoc) return res.status(404).json({ error: 'Module not found' });
+        // Try to find a real teacher-created course first
+        const course = await Course.findById(courseId).catch(() => null);
 
-        const topicDoc = moduleDoc.topics.id(topicId);
-        if (!topicDoc) return res.status(404).json({ error: 'Topic not found' });
+        if (course) {
+            // Teacher course path
+            const moduleDoc = course.modules.id(moduleId);
+            if (!moduleDoc) return res.status(404).json({ error: 'Module not found' });
 
-        // Check if quiz already exists for this topic/bloom combo
-        // For simplicity, we can just generate a new one or retrieve last one
-        // We'll generate fresh if requested, or cache it. Given the requirement "Generate AI-based quizzes", let's generate on demand but maybe save to TopicQuiz model for logging.
+            const topicDoc = moduleDoc.topics.id(topicId);
+            if (!topicDoc) return res.status(404).json({ error: 'Topic not found' });
 
-        // Actually, Step 2 says "Generate ONLY topic name...".
-        console.log(`Generating Topic Quiz: ${topicDoc.title} (${course.title}) [${bloomLevel}]`);
+            topicTitle = topicDoc.title;
+            courseTitle = course.title;
+            courseLevel = course.level || 'Intermediate';
+            topicDescription = topicDoc.description || '';
+        } else {
+            // AI learning path fallback — find topic in StudentProfile
+            const profile = await StudentProfile.findOne({ userId });
+            if (!profile || !profile.currentPath) {
+                return res.status(404).json({ error: 'No learning path found' });
+            }
+
+            let foundTopic = null;
+            for (const mod of profile.currentPath.modules) {
+                if (mod.id === moduleId || mod._id?.toString() === moduleId) {
+                    foundTopic = mod.topics.find(
+                        t => t.id === topicId || t._id?.toString() === topicId
+                    );
+                    if (foundTopic) break;
+                }
+            }
+
+            if (!foundTopic) {
+                return res.status(404).json({ error: 'Topic not found in learning path' });
+            }
+
+            topicTitle = foundTopic.title;
+            courseTitle = profile.onboarding?.field || 'Your Learning Path';
+            courseLevel = profile.onboarding?.level || 'Intermediate';
+            topicDescription = foundTopic.description || '';
+        }
+
+        console.log(`Generating Topic Quiz: "${topicTitle}" (${courseTitle}) [${bloomLevel || 'understand'}]`);
 
         const questions = await aiService.generateTopicQuiz(
-            topicDoc.title,
-            course.title,
-            course.level || 'Intermediate',
+            topicTitle,
+            courseTitle,
+            courseLevel,
             bloomLevel || 'understand',
-            topicDoc.description || ''
+            topicDescription
         );
 
-        // Optional: Save to TopicQuiz model if we want to build a bank
-        // const newQuiz = new TopicQuiz({ ... }) 
-
-        res.json({ title: topicDoc.title, questions });
+        res.json({ title: topicTitle, questions });
 
     } catch (error) {
-        console.error("Error generating topic quiz:", error);
+        console.error('Error generating topic quiz:', error);
         res.status(500).json({ error: 'Server error generating quiz' });
     }
 };

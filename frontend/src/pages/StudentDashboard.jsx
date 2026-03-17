@@ -161,7 +161,7 @@ const StudentDashboard = ({ user, profile, onLogout, fetchProfile }) => {
                                     <motion.button
                                         whileHover={{ scale: 1.04 }}
                                         whileTap={{ scale: 0.97 }}
-                                        onClick={() => navigate('/my-courses')}
+                                        onClick={() => navigate('/daily-quiz')}
                                         className="bg-surface text-theme px-6 py-3 rounded-none font-black text-sm hover:bg-page transition-colors shadow-sm"
                                     >
                                         Go to Quizzes
@@ -175,7 +175,7 @@ const StudentDashboard = ({ user, profile, onLogout, fetchProfile }) => {
                             <GlassStatCard title="Hours Studied" value={profile?.stats?.hoursStudied || 0} icon={Clock} iconColor="text-blue-500" iconBg="bg-blue-50" />
                             <GlassStatCard title="Courses Completed" value={profile?.stats?.coursesCompleted || 0} icon={BookOpen} iconColor="text-emerald-500" iconBg="bg-emerald-50" />
                             <GlassStatCard title="Current Streak" value={profile?.streak || 0} unit="Days" icon={Trophy} iconColor="text-amber-500" iconBg="bg-amber-50" />
-                            <GlassStatCard title="Total Points" value={profile?.stats?.totalPoints || 0} icon={Star} iconColor="text-theme" iconBg="bg-theme-light" />
+                            <GlassStatCard title="Total Points" value={profile?.points || 0} icon={Star} iconColor="text-theme" iconBg="bg-theme-light" />
                         </motion.div>
 
                         {/* Learning Roadmap */}

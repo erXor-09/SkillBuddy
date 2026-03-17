@@ -17,7 +17,7 @@ const DashboardLayout = () => {
             }}
         >
             <Sidebar onLogout={logout} />
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <div className="flex-1 flex flex-col h-screen overflow-y-auto">
                 <Outlet />
             </div>
         </div>

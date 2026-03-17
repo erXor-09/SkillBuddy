@@ -17,6 +17,7 @@ import AIPathCurriculum from './pages/AIPathCurriculum';
 import DashboardLayout from './layouts/DashboardLayout';
 import StudentAnalytics from './pages/StudentAnalytics';
 import EditProfilePage from './pages/EditProfilePage';
+import DailyQuiz from './pages/DailyQuiz';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -43,7 +44,9 @@ function App() {
 
             {/* Main App with Sidebar Layout */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/student/overview" element={<Dashboard />} />
+              <Route path="/teacher/overview" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Navigate to="/student/overview" replace />} />
               <Route path="/profile" element={<EditProfilePage />} />
               <Route path="/course/:moduleId/topic/:topicId" element={<CourseView />} />
               <Route path="/doubts" element={<Doubts />} />
@@ -53,6 +56,7 @@ function App() {
               <Route path="/class/:courseId" element={<ClassView />} />
               <Route path="/ai-path" element={<AIPathCurriculum />} />
               <Route path="/ai-course/module/:moduleId/topic/:topicId" element={<CourseView />} />
+              <Route path="/daily-quiz" element={<DailyQuiz />} />
             </Route>
           </Routes>
         </Router>

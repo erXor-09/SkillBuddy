@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Brain, Menu, BarChart, BookOpen, Trophy, LogOut, Home, MessageSquare, Users } from 'lucide-react';
+import { Brain, Menu, BarChart, BookOpen, Trophy, LogOut, Home, MessageSquare, Users, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
@@ -50,16 +50,17 @@ const Sidebar = ({ onLogout }) => {
             <nav className="flex-1 p-4 space-y-1">
                 {isTeacher ? (
                     <>
-                        <NavItem darkMode={darkMode} icon={Home} label="Overview" to="/dashboard" isActive={location.pathname === '/dashboard'} isCollapsed={isCollapsed} />
-                        <NavItem darkMode={darkMode} icon={Users} label="Students" to="/dashboard" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('students')} />
-                        <NavItem darkMode={darkMode} icon={BookOpen} label="Courses" to="/dashboard" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('courses')} />
-                        <NavItem darkMode={darkMode} icon={MessageSquare} label="Doubts" to="/dashboard" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('doubts')} />
-                        <NavItem darkMode={darkMode} icon={BarChart} label="Analytics" to="/dashboard" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('analytics')} />
+                        <NavItem darkMode={darkMode} icon={Home} label="Overview" to="/teacher/overview" isActive={location.pathname === '/teacher/overview'} isCollapsed={isCollapsed} />
+                        <NavItem darkMode={darkMode} icon={Users} label="Students" to="/teacher/overview" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('students')} />
+                        <NavItem darkMode={darkMode} icon={BookOpen} label="Courses" to="/teacher/overview" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('courses')} />
+                        <NavItem darkMode={darkMode} icon={MessageSquare} label="Doubts" to="/teacher/overview" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('doubts')} />
+                        <NavItem darkMode={darkMode} icon={BarChart} label="Analytics" to="/teacher/overview" isActive={false} isCollapsed={isCollapsed} onClick={() => window.__setTeacherSection?.('analytics')} />
                     </>
                 ) : (
                     <>
-                        <NavItem darkMode={darkMode} icon={Home} label="Dashboard" to="/dashboard" isActive={location.pathname === '/dashboard'} isCollapsed={isCollapsed} />
+                        <NavItem darkMode={darkMode} icon={Home} label="Dashboard" to="/student/overview" isActive={location.pathname === '/student/overview'} isCollapsed={isCollapsed} />
                         <NavItem darkMode={darkMode} icon={BookOpen} label="My Courses" to="/my-courses" isActive={location.pathname.startsWith('/my-courses') || location.pathname.startsWith('/class/')} isCollapsed={isCollapsed} />
+                        <NavItem darkMode={darkMode} icon={Flame} label="Daily Quiz" to="/daily-quiz" isActive={location.pathname === '/daily-quiz'} isCollapsed={isCollapsed} />
                         <NavItem darkMode={darkMode} icon={MessageSquare} label="Doubt Resolution" to="/doubts" isActive={location.pathname === '/doubts'} isCollapsed={isCollapsed} />
                         <NavItem darkMode={darkMode} icon={BarChart} label="Analytics" to="/analytics" isActive={location.pathname === '/analytics'} isCollapsed={isCollapsed} />
                         <NavItem darkMode={darkMode} icon={Trophy} label="Leaderboard" to="/leaderboard" isActive={location.pathname === '/leaderboard'} isCollapsed={isCollapsed} />

@@ -1,61 +1,97 @@
 // ============================================================================
-// SKILLBUDDY AI SERVICE - OpenRouter Integration
+// SKILLBUDDY AI SERVICE - Groq (Primary) + OpenRouter (Fallback)
 // backend/services/ai-service.js
 // ============================================================================
 
 const axios = require('axios');
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const AI_MODEL = process.env.AI_MODEL || 'pstage/solar-pro-3:free';
-const SITE_URL = process.env.SITE_URL || 'http://localhost:5173';
-const SITE_NAME = process.env.SITE_NAME || 'SkillBuddy';
+// ── Groq config (free, 14 400 req/day, no credit card) ────────────────────
+const GROQ_API_KEY   = process.env.GROQ_API_KEY;
+const GROQ_MODEL     = process.env.GROQ_MODEL || 'llama3-8b-8192';
 
-if (!OPENROUTER_API_KEY) {
-  console.warn('⚠️ OPENROUTER_API_KEY not found in .env file');
+// ── OpenRouter config (fallback) ──────────────────────────────────────────
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OR_MODEL       = process.env.AI_MODEL || 'mistralai/mistral-7b-instruct:free';
+const SITE_URL       = process.env.SITE_URL || 'http://localhost:5173';
+const SITE_NAME      = process.env.SITE_NAME || 'SkillBuddy';
+
+if (!GROQ_API_KEY && !OPENROUTER_API_KEY) {
+  console.warn('⚠️  No AI key found. Set GROQ_API_KEY in backend/.env');
+} else if (GROQ_API_KEY) {
+  console.log(`🤖 AI: Groq (${GROQ_MODEL})`);
+} else {
+  console.log(`🤖 AI: OpenRouter (${OR_MODEL})`);
 }
 
 // Helper function to clean AI responses
 function cleanJSONResponse(text) {
-  // Remove markdown code blocks
   let cleaned = text.trim()
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
 
-  // Try to find JSON array or object in the response
   const arrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
   const objectMatch = cleaned.match(/\{\s*"[\s\S]*\}/);
 
-  if (arrayMatch) {
-    cleaned = arrayMatch[0];
-  } else if (objectMatch) {
-    cleaned = objectMatch[0];
-  }
+  if (arrayMatch) cleaned = arrayMatch[0];
+  else if (objectMatch) cleaned = objectMatch[0];
 
   return cleaned;
 }
 
+// ── Core AI caller — tries Groq first, falls back to OpenRouter ────────────
 async function callOpenRouter(prompt, maxTokens = 3000) {
+  const systemMsg = 'You are a helpful educational assistant. Always respond with valid JSON only, no markdown formatting or explanations.';
+
+  // ── 1. Try Groq (primary) ─────────────────────────────────────────────
+  if (GROQ_API_KEY) {
+    try {
+      console.log(`🤖 Groq AI (${GROQ_MODEL})…`);
+      const res = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model: GROQ_MODEL,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user',   content: prompt },
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.7,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
+            'Content-Type':  'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+      const content = res.data.choices[0]?.message?.content;
+      console.log('✅ Groq response, length:', content?.length);
+      return content;
+    } catch (err) {
+      const status = err.response?.status;
+      const msg    = err.response?.data?.error?.message || err.message;
+      console.warn(`⚠️  Groq failed (${status}): ${msg}`);
+      if (!OPENROUTER_API_KEY) throw new Error(`Groq error (${status}): ${msg}`);
+      console.log('↩️  Falling back to OpenRouter…');
+    }
+  }
+
+  // ── 2. OpenRouter fallback ────────────────────────────────────────────
   if (!OPENROUTER_API_KEY) {
-    throw new Error('OpenRouter API key not configured');
+    throw new Error('No AI provider configured. Please set GROQ_API_KEY in backend/.env');
   }
 
   try {
-    console.log('🤖 Calling OpenRouter AI...');
-
-    const response = await axios.post(
+    console.log(`🤖 OpenRouter (${OR_MODEL})…`);
+    const res = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: AI_MODEL,
+        model: OR_MODEL,
         messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful educational assistant. Always respond with valid JSON only, no markdown formatting or explanations.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
+          { role: 'system', content: systemMsg },
+          { role: 'user',   content: prompt },
         ],
         max_tokens: maxTokens,
         temperature: 0.7,
@@ -63,24 +99,23 @@ async function callOpenRouter(prompt, maxTokens = 3000) {
       {
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': SITE_URL,
-          'X-Title': SITE_NAME,
-          'Content-Type': 'application/json',
+          'HTTP-Referer':  SITE_URL,
+          'X-Title':       SITE_NAME,
+          'Content-Type':  'application/json',
         },
-        timeout: 45000 // Increased timeout for larger models
+        timeout: 45000,
       }
     );
-
-    const content = response.data.choices[0]?.message?.content;
-    console.log('✅ OpenRouter response received, length:', content?.length);
+    const content = res.data.choices[0]?.message?.content;
+    console.log('✅ OpenRouter response, length:', content?.length);
     return content;
-  } catch (error) {
-    console.error('❌ OpenRouter API Error:', error.message);
-    if (error.response) {
-      console.error('   Status:', error.response.status);
-      console.error('   Data:', JSON.stringify(error.response.data));
-    }
-    throw error;
+  } catch (err) {
+    const status = err.response?.status;
+    const msg    = err.response?.data?.error?.message || err.message;
+    console.error(`❌ OpenRouter error (${status}): ${msg}`);
+    if (status === 401) throw new Error('AI provider auth failed. Check your API key and account credits.');
+    if (status === 429) throw new Error('AI rate limit reached. Please wait a moment.');
+    throw err;
   }
 }
 
@@ -348,65 +383,180 @@ async function generateQuizFromContext(topic, contextText, count = 5) {
 }
 
 async function generateTopicQuiz(topic, className, level, bloomLevel = 'understand', contextText = '') {
-  const prompt = `You are an expert instructor.
-  
-  Generate 10 multiple-choice questions based on the topic "${topic}"
-  for a student enrolled in the class "${className}".
-  
-  Student level: ${level}
-  Cognitive level: ${bloomLevel} (Bloom's Taxonomy)
-  Context: ${contextText}
-  
-  Rules:
-  - Questions must be strictly related to the topic
-  - Assume standard syllabus-level coverage
-  - Include practical and conceptual questions
-  - Include code snippets where relevant
-  - Provide explanation and learning hint
-  - Do NOT reference any specific video or document
-  - Return ONLY valid JSON
-  - Do NOT add markdown or extra text
-  
-  Output format:
-  [
-    {
-      "question": "Question text",
-      "code": "Optional code snippet",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": "Option A (Exact match)",
-      "explanation": "Explanation here",
-      "hint": "Hint here",
-      "difficulty": 1-10
+  const prompt = `You are an expert instructor. Generate exactly 5 multiple-choice questions about "${topic}" for a ${level} student in "${className}".
+Cognitive level: ${bloomLevel} (Bloom's Taxonomy).
+${contextText ? `Context: ${contextText}` : ''}
+
+Rules:
+- Keep questions concise and clear
+- 4 options per question, only one correct
+- Include a short explanation and hint
+- Return ONLY a valid JSON array, no markdown, no extra text
+
+Format:
+[
+  {
+    "question": "Question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": "Option A",
+    "explanation": "Why this is correct",
+    "hint": "Helpful hint"
+  }
+]`;
+
+  // Attempt to repair a truncated JSON array by closing any open object/array
+  function repairTruncatedJSON(str) {
+    let s = str.trim();
+    // Remove any trailing comma
+    s = s.replace(/,\s*$/, '');
+    // Count unclosed braces/brackets
+    let openObjects = 0, openArrays = 0;
+    for (const ch of s) {
+      if (ch === '{') openObjects++;
+      else if (ch === '}') openObjects--;
+      else if (ch === '[') openArrays++;
+      else if (ch === ']') openArrays--;
     }
-  ]`;
+    // Close open objects first, then arrays
+    for (let i = 0; i < openObjects; i++) s += '}';
+    for (let i = 0; i < openArrays; i++) s += ']';
+    return s;
+  }
 
   try {
-    const response = await callOpenRouter(prompt, 4000);
-    const cleaned = cleanJSONResponse(response);
-    const questions = JSON.parse(cleaned);
+    const response = await callOpenRouter(prompt, 6000);
+    let cleaned = cleanJSONResponse(response);
 
-    if (!Array.isArray(questions)) throw new Error('Not an array');
+    let questions;
+    try {
+      questions = JSON.parse(cleaned);
+    } catch (parseErr) {
+      // Try repairing truncated JSON
+      console.warn('Topic quiz JSON truncated, attempting repair…');
+      cleaned = repairTruncatedJSON(cleaned);
+      questions = JSON.parse(cleaned);
+    }
+
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('Empty or invalid array');
 
     return questions.map((q, i) => ({
       question: q.question || `Question ${i + 1}`,
-      code: q.code || '',
-      options: Array.isArray(q.options) ? q.options.slice(0, 4) : ['A', 'B', 'C', 'D'],
-      correctAnswer: q.correctAnswer || (q.options ? q.options[0] : 'A'),
+      options: Array.isArray(q.options) && q.options.length >= 2 ? q.options.slice(0, 4) : ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: q.correctAnswer || (q.options?.[0] ?? 'Option A'),
       explanation: q.explanation || 'No explanation provided.',
-      hint: q.hint || 'No hint available.',
+      hint: q.hint || '',
       difficulty: q.difficulty || 5
     }));
   } catch (error) {
     console.error('AI Topic Quiz Gen Failed:', error.message);
-    // Fallback
+    if (error.message && (error.message.includes('invalid') || error.message.includes('credits') || error.message.includes('rate limit'))) {
+      throw error;
+    }
+    // Fallback only for genuine parse/network errors
     return Array.from({ length: 5 }, (_, i) => ({
       question: `Fallback: What is a key concept in ${topic}?`,
-      options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-      correctAnswer: "Concept A",
-      explanation: "This is a fallback question (AI unavailable).",
-      hint: "Select the first option.",
+      options: ['Concept A', 'Concept B', 'Concept C', 'Concept D'],
+      correctAnswer: 'Concept A',
+      explanation: 'This is a fallback question (AI unavailable).',
+      hint: 'Select the first option.',
       difficulty: 1
     }));
+  }
+}
+
+// ============================================================================
+// PDF MCQ GENERATION
+// ============================================================================
+
+/**
+ * Split text into word-based chunks to avoid exceeding token limits.
+ */
+function chunkText(text, size = 800) {
+  const words = text.split(/\s+/);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += size) {
+    chunks.push(words.slice(i, i + size).join(' '));
+  }
+  return chunks;
+}
+
+/**
+ * Generate MCQs from extracted PDF text using OpenRouter.
+ * Processes text in chunks and aggregates results.
+ */
+async function generateMCQsForText(text) {
+  const chunks = chunkText(text);
+  let allMCQs = [];
+
+  for (const chunk of chunks) {
+    const prompt = `Generate 5 multiple-choice questions from the text below.
+
+Rules:
+- 4 options per question
+- Only one correct answer
+- Include an explanation for the correct answer
+- Return ONLY a valid JSON array, no markdown
+
+Format:
+[
+  {
+    "question": "...",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": "Option A",
+    "explanation": "..."
+  }
+]
+
+Text:
+${chunk}`;
+
+    try {
+      const result = await callOpenRouter(prompt, 2000);
+      const cleaned = cleanJSONResponse(result);
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) {
+        allMCQs.push(...parsed);
+      }
+    } catch (e) {
+      console.error('MCQ chunk parsing error:', e.message);
+    }
+  }
+
+  return allMCQs;
+}
+
+async function generateQuizResources(field, level, topics = []) {
+  const topicStr = topics.slice(0, 3).join(', ') || field;
+  const prompt = `You are an educational resource curator. Return ONLY a valid JSON array (no markdown).
+Provide exactly 5 recommended learning resources for a ${level} student who just completed a quiz on "${topicStr}" in ${field}.
+Mix: 2 YouTube videos, 2 articles/docs, 1 interactive resource.
+Format:
+[
+  {
+    "title": "Resource title",
+    "url": "https://actual-url.com",
+    "type": "youtube",
+    "description": "One short sentence why this helps",
+    "duration": "10 min"
+  }
+]
+Use real URLs (MDN, YouTube, freeCodeCamp, W3Schools, official docs).`;
+
+  try {
+    const response = await callOpenRouter(prompt, 1500);
+    const cleaned = cleanJSONResponse(response);
+    const resources = JSON.parse(cleaned);
+    if (Array.isArray(resources) && resources.length > 0) return resources;
+    throw new Error('Invalid resource array');
+  } catch (error) {
+    console.error('Quiz resource gen failed:', error.message);
+    return [
+      { title: `${field} — MDN Web Docs`, url: `https://developer.mozilla.org/en-US/search?q=${encodeURIComponent(field)}`, type: 'article', description: 'Comprehensive reference documentation', duration: '10 min' },
+      { title: `${field} Full Course — freeCodeCamp`, url: 'https://www.youtube.com/c/Freecodecamp', type: 'youtube', description: 'Free in-depth video course', duration: '2 hrs' },
+      { title: `${field} Tutorial — W3Schools`, url: 'https://www.w3schools.com', type: 'article', description: 'Beginner-friendly interactive reference', duration: '15 min' },
+      { title: `${field} Videos`, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(field + ' tutorial')}`, type: 'youtube', description: 'Video tutorials from top educators', duration: 'varies' },
+      { title: `${field} — Khan Academy`, url: 'https://www.khanacademy.org', type: 'article', description: 'Structured learning with exercises', duration: '30 min' },
+    ];
   }
 }
 
@@ -416,5 +566,7 @@ module.exports = {
   generateResourceRecommendations,
   generateQuizFromContext,
   generateTopicQuiz,
+  generateMCQsForText,
+  generateQuizResources,
   callOpenRouter
 };
